@@ -23,6 +23,7 @@ dependencies:
 - vector
 - di
 - dhall
+- lens
 
 executables:
   poke-exe:

@@ -1,4 +1,10 @@
-{ botID.fromSnowflake      = 123456789,
-  adminID.fromSnowflake    = 123456789,
-  vchannelID.fromSnowflake = 123456789,
-  token = "X"}
+{ _botID.fromSnowflake = 1234,
+  _adminID.fromSnowflake = 1234,
+  _vchannelID.fromSnowflake = 1234,
+  _botToken = "X",
+  _joinMsg =
+  "X",
+  _nameRecievedMsg = "X",
+  _emailRecievedMsg = "X",
+  _finishedMsg = "X"
+}

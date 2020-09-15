@@ -36,6 +36,7 @@ import Calamity.Metrics.Noop
 import qualified Calamity.HTTP.Guild
 import qualified Calamity.Types.Model.Channel.Message as M
 
+import Control.Lens
 import Control.Monad
 
 import qualified Data.HashMap.Strict as Map
@@ -52,8 +53,12 @@ import GHC.Generics
 import qualified Polysemy as P
 import qualified Polysemy.AtomicState as P
 
-data Settings = Settings {token :: Text, botID :: Snowflake User, adminID :: Snowflake User, vchannelID :: Snowflake Channel}
-  deriving (Generic, Show)
+data Settings = Settings {
+  _botToken :: Text, _botID :: Snowflake User, _adminID :: Snowflake User, _vchannelID :: Snowflake Channel,
+  _joinMsg :: Text, _nameRecievedMsg :: Text, _emailRecievedMsg :: Text, _finishedMsg :: Text
+} deriving (Generic, Show)
+
+makeLenses ''Settings
 
 instance Dhall.FromDhall (Snowflake a)
 instance Dhall.FromDhall Settings
@@ -65,28 +70,28 @@ emptyUserFormMap = Map.empty
 
 main :: IO ()
 main = do
-  settings@Settings{token, botID, adminID, vchannelID} <- (Dhall.input Dhall.auto "./config.dhall" :: IO Settings)
+  cfg <- (Dhall.input Dhall.auto "./config.dhall" :: IO Settings)
   let program = do
         react @'GuildMemberAddEvt $ \ctx -> do
-          void $ tell @Text ctx "Please send your full name."
+          void $ tell @Text ctx $ cfg ^. joinMsg
 
         react @'MessageCreateEvt $ \ctx@M.Message{M.author=writer, M.guildID = guildIDOpt, M.content = response} -> do
           -- the bot responding to its messages counts as an event, so ignore that to prevent looping
-          case (writer /= botID) && isNothing guildIDOpt of
+          case (writer /= cfg ^. botID) && isNothing guildIDOpt of
             False -> pure ()
             True -> do
               current <- P.atomicGet
               case Map.lookup writer current of
                 Nothing -> do
                   _ <- P.atomicPut $ Map.insert writer (Named response) current
-                  void $ tell @Text writer "Thanks for name."
+                  void $ tell @Text writer $ cfg ^. nameRecievedMsg
                 Just (Named name) -> do
                   _ <- P.atomicPut (Map.insert writer Finished current)
-                  void $ tell vchannelID (name <> " " <> response)
-                  void $ tell @Text writer "Done, sent to verification channel."
-                Just Finished -> void $ tell @Text writer "Nothing to do"
+                  void $ tell (cfg ^. vchannelID) (name <> " " <> response)
+                  void $ tell @Text writer $ cfg ^. emailRecievedMsg
+                Just Finished -> void $ tell @Text writer $ cfg ^. finishedMsg
   Di.new \di -> do
     void . P.runFinal . P.embedToFinal. runCacheInMemory . runDiToIO di. runMetricsNoop.
       -- if run without IO, the state is localised, ignore final state via fmap
       fmap snd . P.atomicStateToIO emptyUserFormMap .
-      useConstantPrefix "!" $ runBotIO (BotToken token) $ program
+      useConstantPrefix "!" $ runBotIO (BotToken $ cfg ^. botToken) $ program
