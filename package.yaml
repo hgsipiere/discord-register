@@ -1,0 +1,47 @@
+name:                poke
+license:             BSD3
+
+extra-source-files:
+ - LICENSE
+ - README
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+
+dependencies:
+- base >= 4.7 && < 5
+- calamity
+- polysemy
+- polysemy-plugin
+- di-polysemy
+- text
+- unordered-containers
+- vector
+- di
+- dhall
+
+executables:
+  poke-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+      - -O2
+      - -fplugin=Polysemy.Plugin
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+        #     default-extensions:
+        #      - DataKinds
+        #      - FlexibleContexts
+        #      - GADTs
+        #     - LambdaCase
+        #     - PolyKinds
+        #     - RankNTypes
+        #     - ScopedTypeVariables
+        #     - TypeApplications
+        #     - TypeOperators
+        #     - TypeFamilies

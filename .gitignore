@@ -1,0 +1,6 @@
+.stack-work/
+config.dhall
+*~
+*.cabal
+*.swp
+/stack.yaml.lock

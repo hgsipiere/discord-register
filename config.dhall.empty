@@ -1,0 +1,4 @@
+{ botID.fromSnowflake      = 123456789,
+  adminID.fromSnowflake    = 123456789,
+  vchannelID.fromSnowflake = 123456789,
+  token = "X"}
