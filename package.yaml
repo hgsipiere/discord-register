@@ -3,7 +3,7 @@ license:             BSD3
 
 extra-source-files:
  - LICENSE
- - README
+ - README.md
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
 # category:            Web
