@@ -1,11 +1,11 @@
-{ _botID.fromSnowflake = 1234,
-  _adminID.fromSnowflake = 1234,
-  _vchannelID.fromSnowflake = 1234,
-  _botToken = "X",
-  _joinMsg =
+{ botID.fromSnowflake = 1234,
+  adminID.fromSnowflake = 1234,
+  vchannelID.fromSnowflake = 1234,
+  botToken = "X",
+  joinMsg =
   "X",
-  _nameRecievedMsg = "X",
-  _emailRecievedMsg = "X",
-  _finishedMsg = "X",
-  _noAtEmailMsg = "X"
+  nameRecievedMsg = "X",
+  emailRecievedMsg = "X",
+  finishedMsg = "X",
+  noAtEmailMsg = "X"
 }
