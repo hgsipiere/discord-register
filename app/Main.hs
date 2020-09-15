@@ -41,7 +41,7 @@ import Control.Monad
 
 import qualified Data.HashMap.Strict as Map
 import Data.Maybe (isNothing)
-import Data.Text.Lazy (Text, pack)
+import Data.Text.Lazy as TL
 
 import qualified Dhall
 
@@ -53,9 +53,12 @@ import GHC.Generics
 import qualified Polysemy as P
 import qualified Polysemy.AtomicState as P
 
+import Prelude hiding (elem)
+
 data Settings = Settings {
   _botToken :: Text, _botID :: Snowflake User, _adminID :: Snowflake User, _vchannelID :: Snowflake Channel,
-  _joinMsg :: Text, _nameRecievedMsg :: Text, _emailRecievedMsg :: Text, _finishedMsg :: Text
+  _joinMsg :: Text, _nameRecievedMsg :: Text,
+  _emailRecievedMsg :: Text, _noAtEmailMsg :: Text, _finishedMsg :: Text
 } deriving (Generic, Show)
 
 makeLenses ''Settings
@@ -85,10 +88,12 @@ main = do
                 Nothing -> do
                   _ <- P.atomicPut $ Map.insert writer (Named response) current
                   void $ tell @Text writer $ cfg ^. nameRecievedMsg
-                Just (Named name) -> do
-                  _ <- P.atomicPut (Map.insert writer Finished current)
-                  void $ tell (cfg ^. vchannelID) (name <> " " <> response)
-                  void $ tell @Text writer $ cfg ^. emailRecievedMsg
+                Just (Named name) -> case TL.foldl' (\t c -> t || c == '@') False response of
+                  False -> void $ tell @Text writer $ cfg ^. noAtEmailMsg
+                  True -> do
+                    _ <- P.atomicPut (Map.insert writer Finished current)
+                    void $ tell (cfg ^. vchannelID) (name <> " " <> response)
+                    void $ tell @Text writer $ cfg ^. emailRecievedMsg
                 Just Finished -> void $ tell @Text writer $ cfg ^. finishedMsg
   Di.new \di -> do
     void . P.runFinal . P.embedToFinal. runCacheInMemory . runDiToIO di. runMetricsNoop.

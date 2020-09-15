@@ -6,5 +6,6 @@
   "X",
   _nameRecievedMsg = "X",
   _emailRecievedMsg = "X",
-  _finishedMsg = "X"
+  _finishedMsg = "X",
+  _noAtEmailMsg = "X"
 }
