@@ -1,32 +1,3 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE ApplicativeDo              #-}
-{-# LANGUAGE ConstraintKinds            #-}
-{-# LANGUAGE DefaultSignatures          #-}
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE MultiWayIf                 #-}
-{-# LANGUAGE RankNTypes                 #-}
-{-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE TupleSections              #-}
-{-# LANGUAGE TypeFamilies               #-}
-{-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE ViewPatterns               #-}
-
 module Main where
 
 import Calamity
@@ -36,17 +7,17 @@ import Calamity.Metrics.Noop
 import qualified Calamity.HTTP.Guild
 import qualified Calamity.Types.Model.Channel.Message as M
 
-import Control.Lens
-import Control.Monad
+import Control.Lens ((^.), makeLenses)
+import Control.Monad (void)
 
-import qualified Data.HashMap.Strict as Map
+import qualified Data.HashMap.Strict as Map (insert, empty, lookup, HashMap)
 import Data.Maybe (isNothing)
-import Data.Text.Lazy as TL
+import Data.Text.Lazy as TL (Text, foldl')
 
-import qualified Dhall
+import qualified Dhall (input, auto, FromDhall)
 
-import qualified Di
-import DiPolysemy
+import qualified Di (new)
+import DiPolysemy (runDiToIO)
 
 import GHC.Generics
 
@@ -76,7 +47,7 @@ main = do
   cfg <- (Dhall.input Dhall.auto "./config.dhall" :: IO Settings)
   let program = do
         react @'GuildMemberAddEvt $ \ctx -> do
-          void $ tell @Text ctx $ cfg ^. joinMsg
+          void $ tell ctx $ cfg ^. joinMsg
 
         react @'MessageCreateEvt $ \ctx@M.Message{M.author=writer, M.guildID = guildIDOpt, M.content = response} -> do
           -- the bot responding to its messages counts as an event, so ignore that to prevent looping
@@ -87,16 +58,15 @@ main = do
               case Map.lookup writer current of
                 Nothing -> do
                   _ <- P.atomicPut $ Map.insert writer (Named response) current
-                  void $ tell @Text writer $ cfg ^. nameRecievedMsg
+                  void $ tell writer $ cfg ^. nameRecievedMsg
                 Just (Named name) -> case TL.foldl' (\t c -> t || c == '@') False response of
-                  False -> void $ tell @Text writer $ cfg ^. noAtEmailMsg
+                  False -> void $ tell writer $ cfg ^. noAtEmailMsg
                   True -> do
                     _ <- P.atomicPut (Map.insert writer Finished current)
                     void $ tell (cfg ^. vchannelID) (name <> " " <> response)
-                    void $ tell @Text writer $ cfg ^. emailRecievedMsg
-                Just Finished -> void $ tell @Text writer $ cfg ^. finishedMsg
+                    void $ tell writer $ cfg ^. emailRecievedMsg
+                Just Finished -> void $ tell writer $ cfg ^. finishedMsg
   Di.new \di -> do
     void . P.runFinal . P.embedToFinal. runCacheInMemory . runDiToIO di. runMetricsNoop.
       -- if run without IO, the state is localised, ignore final state via fmap
-      fmap snd . P.atomicStateToIO emptyUserFormMap .
-      useConstantPrefix "!" $ runBotIO (BotToken $ cfg ^. botToken) $ program
+      fmap snd . P.atomicStateToIO emptyUserFormMap . runBotIO (BotToken $ cfg ^. botToken) $ program
