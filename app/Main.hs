@@ -24,8 +24,6 @@ import GHC.Generics
 import qualified Polysemy as P
 import qualified Polysemy.AtomicState as P
 
-import Prelude hiding (elem)
-
 data Settings = Settings {
   _botToken :: Text, _botID :: Snowflake User, _adminID :: Snowflake User, _vchannelID :: Snowflake Channel,
   _joinMsg :: Text, _nameRecievedMsg :: Text,
