@@ -52,8 +52,6 @@ import GHC.Generics
 import qualified Polysemy as P
 import qualified Polysemy.AtomicState as P
 
-import System.Environment
-
 data Settings = Settings {token :: Text, botID :: Snowflake User, adminID :: Snowflake User, vchannelID :: Snowflake Channel}
   deriving (Generic, Show)
 
