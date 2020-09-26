@@ -24,7 +24,7 @@ dependencies:
 - di
 - dhall
 - generic-lens
-
+- text-show
 executables:
   poke-exe:
     main:                Main.hs

@@ -12,7 +12,7 @@ import Control.Monad (void)
 
 import qualified Data.HashMap.Strict as Map (insert, empty, lookup, HashMap)
 import Data.Maybe (isNothing)
-import Data.Text.Lazy as TL (Text, foldl')
+import Data.Text.Lazy as TL (Text, foldl', append)
 
 import qualified Dhall (input, auto, FromDhall)
 
@@ -24,6 +24,7 @@ import GHC.Generics
 import qualified Polysemy as P
 import qualified Polysemy.AtomicState as P
 
+import TextShow
 data Settings = Settings {
   botToken :: Text, botID :: Snowflake User, adminID :: Snowflake User, vchannelID :: Snowflake Channel,
   joinMsg :: Text, nameReciMsg :: Text, emailReciMsg :: Text, screenshotReciMsg :: Text,
@@ -54,26 +55,25 @@ messageCreateAction cfg = \msg@Message{author, M.content = response} ->
             void $ tell author $ cfg ^. #emailReciMsg
         Just (NamedEmailed name email) -> case msg ^. #attachments of
           files@(x:_) -> do
-            let embedImage = EmbedImage (x ^. #url) (x ^. #proxyUrl) 0 0
-            let embed = Embed (Just "sc") (Just "image") (Just "something") Nothing Nothing Nothing Nothing (Just embedImage) Nothing Nothing Nothing Nothing []
             void $ tell (cfg ^. #vchannelID) (name <> " " <> email)
-            void $ tell (cfg ^. #vchannelID) embed
             void $ tell (cfg ^. #vchannelID) (x ^. #url)
+	    void $ tell (cfg ^. #vchannelID) (toMention author)
             void $ tell @Text author $ cfg ^. #screenshotReciMsg
           [] -> void $ tell @Text author $ cfg ^. #noScreenshotMsg
-        Just Finished -> void $ tell author $ cfg ^. #finishedMsg
+        Just Finished -> do
+	  void $ tell author $ cfg ^. #finishedMsg
 
-embedEarth = EmbedImage "https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg"
-                        "https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg"
-                        3002 3000
-embed' = Embed (Just "sc") (Just "image") (Just "something") Nothing Nothing Nothing Nothing (Just embedEarth) Nothing Nothing Nothing Nothing []
+toMention :: Snowflake User -> CreateMessageOptions
+toMention sUser = CreateMessageOptions (Just $ showt ("<@" `append`  showtl sUser `append` ">"))
+  Nothing Nothing Nothing Nothing -- no nonce, tts, file, embed
+  (Just (AllowedMentions [AllowedMentionUsers] [] [sUser]))
+
 main :: IO ()
 main = do
   cfg <- Dhall.input Dhall.auto "./config.dhall" :: IO Settings
   let program = do
         react @'GuildMemberAddEvt \ctx -> void $ tell ctx $ cfg ^. #joinMsg
         react @'MessageCreateEvt $ messageCreateAction cfg
-        void $ tell (cfg ^. #vchannelID) embed'
   Di.new \di -> do
     void . P.runFinal . P.embedToFinal. runCacheInMemory . runDiToIO di. runMetricsNoop.
       -- if run without IO, the state is localised, ignore final state via fmap
