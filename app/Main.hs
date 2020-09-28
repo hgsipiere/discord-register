@@ -12,12 +12,12 @@ import Control.Monad (void)
 
 import qualified Data.HashMap.Strict as Map (insert, empty, lookup, HashMap)
 import Data.Maybe (isNothing)
-import Data.Text.Lazy as TL (Text, foldl', append)
+import Data.Text.Lazy as TL (Text, foldl', append, any, singleton)
 
 import qualified Dhall (input, auto, FromDhall)
 
 import qualified Di (new)
-import DiPolysemy (runDiToIO)
+import DiPolysemy (runDiToIO, info)
 
 import GHC.Generics
 
@@ -28,19 +28,19 @@ import TextShow
 data Settings = Settings {
   botToken :: Text, botID :: Snowflake User, adminID :: Snowflake User, vchannelID :: Snowflake Channel,
   joinMsg :: Text, nameReciMsg :: Text, emailReciMsg :: Text, screenshotReciMsg :: Text,
-  noAtEmailMsg :: Text, noScreenshotMsg :: Text, finishedMsg :: Text
+  noAtEmailMsg :: Text, noScreenshotMsg :: Text, finishedMsg :: Text,
+  infoMsg :: Text
 } deriving (Generic, Show)
 
 instance Dhall.FromDhall (Snowflake a)
 instance Dhall.FromDhall Settings
-
 data Form = Named Text | NamedEmailed Text Text | Finished
 
 -- TODO split this into multiple functions
 -- prelimary work of using generic lens is mostly done
-messageCreateAction cfg = \msg@Message{author, M.content = response} ->
+messageCreateAction cfg = \msg@Message{author, M.content = response} -> do
 -- the bot responding to its messages counts as an event, so ignore that to prevent looping
-  case author /= cfg ^. #botID && isNothing (msg ^. #guildID) of
+  case author /= cfg ^. #botID && isNothing (msg ^. #guildID) && (not $ TL.any (== '¬') response) of
     False -> pure ()
     True -> do
       current <- P.atomicGet
@@ -55,6 +55,7 @@ messageCreateAction cfg = \msg@Message{author, M.content = response} ->
             void $ tell author $ cfg ^. #emailReciMsg
         Just (NamedEmailed name email) -> case msg ^. #attachments of
           files@(x:_) -> do
+	    _ <- P.atomicPut $ Map.insert author Finished current
             void $ tell (cfg ^. #vchannelID) (name <> " " <> email)
             void $ tell (cfg ^. #vchannelID) (x ^. #url)
 	    void $ tell (cfg ^. #vchannelID) (toMention author)
@@ -74,7 +75,10 @@ main = do
   let program = do
         react @'GuildMemberAddEvt \ctx -> void $ tell ctx $ cfg ^. #joinMsg
         react @'MessageCreateEvt $ messageCreateAction cfg
+        addCommands ( do
+	  helpCommand
+	  command @'[] "info" \ctx -> void $ tell @Text ctx $ cfg ^. #infoMsg)
   Di.new \di -> do
-    void . P.runFinal . P.embedToFinal. runCacheInMemory . runDiToIO di. runMetricsNoop.
+    void . P.runFinal . P.embedToFinal. runCacheInMemory . runDiToIO di. runMetricsNoop. useConstantPrefix "¬" .
       -- if run without IO, the state is localised, ignore final state via fmap
       fmap snd . P.atomicStateToIO Map.empty . runBotIO (BotToken $ cfg ^. #botToken) $ program

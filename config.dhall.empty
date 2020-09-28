@@ -4,8 +4,11 @@
   botToken = "X",
   joinMsg =
   "X",
-  nameRecievedMsg = "X",
-  emailRecievedMsg = "X",
+  nameReciMsg = "X",
+  emailReciMsg = "X",
   finishedMsg = "X",
-  noAtEmailMsg = "X"
+  noAtEmailMsg = "X",
+  noScreenshotMsg = "X",
+  screenshotReciMsg = "X",
+  infoMsg = "X",
 }
