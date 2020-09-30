@@ -3,7 +3,7 @@
 
 Poke is an interactive verification bot for registers with full name, email and photo ID requirements.
 
-####Features:
+#### Features:
 - All verification forms sent to a verification channel
 - Messages configurable with Dhall (except most admin messages in English)
 - Verification forms can be reset by those with admin role using a command giving a reason
