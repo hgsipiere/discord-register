@@ -1,5 +1,5 @@
 name:                poke
-license:             BSD3
+license:             MPL-2.0
 
 extra-source-files:
  - LICENSE
