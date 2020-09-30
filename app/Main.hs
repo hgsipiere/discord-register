@@ -42,27 +42,21 @@ if' False _ b = b
 
 type ParserStr = Parsec Void String
 
-lexeme :: ParserStr a -> ParserStr a
+preLexeme, lexeme :: ParserStr a -> ParserStr a
 lexeme = CL.lexeme C.space
+preLexeme = (*>) C.space
 
-preLexeme parser = do
-  _ <- C.space
-  parser
-
-nameOrUnderscore' :: ParserStr String
+nameOrUnderscore', fullName :: ParserStr String
 nameOrUnderscore' = (some letterChar) <|> (fmap pure . char $ '_')
-
-fullName :: ParserStr String
 fullName = do
   firstName <- preLexeme nameOrUnderscore'
   restNames <- lexeme . some . preLexeme $ nameOrUnderscore'
-  pure $ foldl f firstName restNames
-  where f acc str = acc ++ " " ++ str
+  pure $ foldl (\z s -> z ++ " " ++ s) firstName restNames
 
 data Settings = Settings {
   botToken :: Text, botID :: Snowflake User, adminID :: Snowflake User, vchannelID :: Snowflake Channel,
   adminRoleID :: Snowflake Role,
-  joinMsg :: Text, faultyNameReciMsg :: String, nameReciMsg :: String, emailReciMsg :: Text, screenshotReciMsg :: Text,
+  joinMsg :: Text, faultyNameReciMsg :: Text, nameReciMsg :: Text, emailReciMsg :: Text, screenshotReciMsg :: Text,
   noAtEmailMsg :: Text, noScreenshotMsg :: Text, finishedMsg :: Text,
   privacyMsg :: Text, infoMsg :: Text,
   iveBeenResetMsg :: Text, resetNeedsGuildMsg :: Text, notAdminMsg :: Text
@@ -81,11 +75,9 @@ mentionUser sUser preMention content = CreateMessageOptions
 
 grabName cfg msg = 
   case runParser fullName "" (unpack response) of
-  Left error -> void $ tell @String author $
-    cfg ^. #faultyNameReciMsg ++ "\n" ++ errorBundlePretty error
-  Right name ->
-    do
-      current :: Map.HashMap (Snowflake User) Form <- P.atomicGet
+  Left error -> void $ tell author $ cfg ^. #faultyNameReciMsg
+  Right name -> do
+      current <- P.atomicGet
       _ <- P.atomicPut $ Map.insert author (Named $ showtl name) current
       void $ tell author $ cfg ^. #nameReciMsg
   where author = msg ^. #author
@@ -107,7 +99,7 @@ grabScreenshot cfg name email msg =
     files@(x:_) -> do
       current <- P.atomicGet
       _ <- P.atomicPut $ Map.insert author Finished current
-      void . tell (cfg ^. #vchannelID) . mentionUser author "Discord ID: "$
+      void . tell (cfg ^. #vchannelID) . mentionUser author "Discord ID: " $
         "\nName: " <> name <> "\nEmail: " <> email <> "\nAttachment: " <> (x ^. #url)
       void $ tell @Text author $ cfg ^. #screenshotReciMsg
     [] -> void $ tell @Text author $ cfg ^. #noScreenshotMsg
@@ -128,7 +120,7 @@ messageCreateAction cfg = \msg@Message{author, M.content = response} -> do
 resetCommand cfg = command @'[Snowflake User, [Text]] "reset" \ctx sUser reason ->
   case ctx ^. #member of
     Nothing -> void $ tell @Text ctx $ cfg ^. #resetNeedsGuildMsg
-    Just mem -> if V.elem (cfg ^. #adminRoleID) (mem ^. #roles)then
+    Just mem -> if V.elem (cfg ^. #adminRoleID) (mem ^. #roles) then
       do
         current <- P.atomicGet
         _ <- P.atomicPut $ Map.insert sUser Empty current
