@@ -66,6 +66,8 @@ extra-deps:
   - text-1.2.4.0
   - generic-lens-2.0.0.0
   - text-show-3.8.5
+  - megaparsec-8.0.0
+  - unboxing-vector-0.1.1.0
 # Override default flag values for local packages and extra-deps
 # flags: {}
 

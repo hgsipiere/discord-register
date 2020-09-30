@@ -12,7 +12,7 @@ import Control.Monad (void)
 
 import qualified Data.HashMap.Strict as Map (insert, empty, lookup, HashMap)
 import Data.Maybe (isNothing)
-import Data.Text.Lazy as TL (Text, foldl', append, any, singleton)
+import Data.Text.Lazy as TL (Text, pack, intercalate, unpack, foldl', append, any, singleton)
 
 import qualified Dhall (input, auto, FromDhall)
 
@@ -25,60 +25,132 @@ import qualified Polysemy as P
 import qualified Polysemy.AtomicState as P
 
 import TextShow
+
+import Text.Megaparsec.Byte (space, string)
+
+import qualified Data.Vector.Unboxing as V (elem)
+
+import Data.Void
+
+import Text.Megaparsec
+import Text.Megaparsec.Char as C
+import qualified Text.Megaparsec.Char.Lexer as CL
+
+if' True a _ = a
+if' False _ b = b
+
+type ParserStr = Parsec Void String
+
+lexeme :: ParserStr a -> ParserStr a
+lexeme = CL.lexeme C.space
+
+preLexeme parser = do
+  _ <- C.space
+  parser
+
+nameOrUnderscore' :: ParserStr String
+nameOrUnderscore' = (some letterChar) <|> (fmap pure . char $ '_')
+
+fullName :: ParserStr String
+fullName = do
+  firstName <- preLexeme nameOrUnderscore'
+  restNames <- lexeme . some . preLexeme $ nameOrUnderscore'
+  pure $ foldl f firstName restNames
+  where f acc str = acc ++ " " ++ str
+
 data Settings = Settings {
   botToken :: Text, botID :: Snowflake User, adminID :: Snowflake User, vchannelID :: Snowflake Channel,
-  joinMsg :: Text, nameReciMsg :: Text, emailReciMsg :: Text, screenshotReciMsg :: Text,
+  adminRoleID :: Snowflake Role,
+  joinMsg :: Text, faultyNameReciMsg :: String, nameReciMsg :: String, emailReciMsg :: Text, screenshotReciMsg :: Text,
   noAtEmailMsg :: Text, noScreenshotMsg :: Text, finishedMsg :: Text,
-  infoMsg :: Text
+  privacyMsg :: Text, infoMsg :: Text,
+  iveBeenResetMsg :: Text, resetNeedsGuildMsg :: Text, notAdminMsg :: Text
 } deriving (Generic, Show)
 
 instance Dhall.FromDhall (Snowflake a)
 instance Dhall.FromDhall Settings
-data Form = Named Text | NamedEmailed Text Text | Finished
+data Form = Empty | Named Text | NamedEmailed Text Text | Finished
 
--- TODO split this into multiple functions
--- prelimary work of using generic lens is mostly done
-messageCreateAction cfg = \msg@Message{author, M.content = response} -> do
--- the bot responding to its messages counts as an event, so ignore that to prevent looping
-  case author /= cfg ^. #botID && isNothing (msg ^. #guildID) && (not $ TL.any (== '¬') response) of
-    False -> pure ()
-    True -> do
-      current <- P.atomicGet
-      case Map.lookup author current of
-        Nothing -> do
-          _ <- P.atomicPut $ Map.insert author (Named response) current
-          void $ tell author $ cfg ^. #nameReciMsg
-        Just (Named name) -> case TL.foldl' (\t c -> t || c == '@') False response of
-          False -> void $ tell author $ cfg ^. #noAtEmailMsg
-          True -> do
-            _ <- P.atomicPut $ Map.insert author (NamedEmailed name response) current
-            void $ tell author $ cfg ^. #emailReciMsg
-        Just (NamedEmailed name email) -> case msg ^. #attachments of
-          files@(x:_) -> do
-	    _ <- P.atomicPut $ Map.insert author Finished current
-            void $ tell (cfg ^. #vchannelID) (name <> " " <> email)
-            void $ tell (cfg ^. #vchannelID) (x ^. #url)
-	    void $ tell (cfg ^. #vchannelID) (toMention author)
-            void $ tell @Text author $ cfg ^. #screenshotReciMsg
-          [] -> void $ tell @Text author $ cfg ^. #noScreenshotMsg
-        Just Finished -> do
-	  void $ tell author $ cfg ^. #finishedMsg
+isAdmin :: Settings -> Member -> Bool
+isAdmin cfg member = V.elem (cfg ^. #adminRoleID) (member ^. #roles)
 
 toMention :: Snowflake User -> CreateMessageOptions
 toMention sUser = CreateMessageOptions (Just $ showt ("<@" `append`  showtl sUser `append` ">"))
   Nothing Nothing Nothing Nothing -- no nonce, tts, file, embed
   (Just (AllowedMentions [AllowedMentionUsers] [] [sUser]))
 
+grabName cfg msg = 
+  case runParser fullName "" (unpack response) of
+  Left error -> void $ tell @String author $
+    cfg ^. #faultyNameReciMsg ++ "\n" ++ errorBundlePretty error
+  Right name ->
+    do
+      current :: Map.HashMap (Snowflake User) Form <- P.atomicGet
+      _ <- P.atomicPut $ Map.insert author (Named $ showtl name) current
+      void $ tell author $ cfg ^. #nameReciMsg
+  where author = msg ^. #author
+        response = msg ^. #content
+
+grabEmail cfg name msg =
+  case (TL.foldl' (\n c -> if' (c == '@') (n+1) n) 0 response) == 1 of
+    False -> void $ tell author $ cfg ^. #noAtEmailMsg
+    True -> do
+      current <- P.atomicGet
+      _ <- P.atomicPut $ Map.insert author (NamedEmailed name response) current
+      void $ tell author $ cfg ^. #emailReciMsg
+  where response = msg ^. #content
+        author = msg ^. #author
+
+grabScreenshot cfg name email msg =
+  let author = msg ^. #author in
+  case msg ^. #attachments of
+    files@(x:_) -> do
+      current <- P.atomicGet
+      _ <- P.atomicPut $ Map.insert author Finished current
+      void $ tell (cfg ^. #vchannelID) (name <> " " <> email)
+      void $ tell (cfg ^. #vchannelID) (x ^. #url)
+      void $ tell (cfg ^. #vchannelID) (toMention author)
+      void $ tell @Text author $ cfg ^. #screenshotReciMsg
+    [] -> void $ tell @Text author $ cfg ^. #noScreenshotMsg
+
+-- the bot responding to its messages counts as an event, so ignore that to prevent looping
+messageCreateAction cfg = \msg@Message{author, M.content = response} -> do
+  case author /= cfg ^. #botID && isNothing (msg ^. #guildID) && (not $ TL.any (== '¬') response) of
+    False -> pure ()
+    True -> do
+      current <- P.atomicGet
+      case Map.lookup author current of
+        Nothing -> grabName cfg msg
+        Just Empty -> grabName cfg msg
+        Just (Named name) -> grabEmail cfg name msg
+        Just (NamedEmailed name email) -> grabScreenshot cfg name email msg
+        Just Finished -> void $ tell author $ cfg ^. #finishedMsg
+
+resetCommand cfg = command @'[Snowflake User, [Text]] "reset" \ctx sUser reason ->
+  case ctx ^. #member of
+    Nothing -> void $ tell @Text ctx $ cfg ^. #resetNeedsGuildMsg
+    Just mem -> if isAdmin cfg mem then
+      do
+        current <- P.atomicGet
+        _ <- P.atomicPut $ Map.insert sUser Empty current
+        void $ tell @Text sUser $ TL.intercalate " " reason
+        void $ tell sUser $ cfg ^. #iveBeenResetMsg
+      else void $ tell ctx $ cfg ^. #notAdminMsg
+
+commandsAdded cfg = addCommands $ do
+  helpCommand
+  command @'[] "info" \ctx -> void $ tell ctx $ cfg ^. #infoMsg
+  command @'[] "privacy" \ctx -> void $ tell ctx $ cfg ^. #privacyMsg
+  resetCommand cfg
+program cfg = 
+  (react @'GuildMemberAddEvt \ctx -> void $ tell ctx $ cfg ^. #joinMsg) >>
+  (react @'MessageCreateEvt $ messageCreateAction cfg) >>
+  commandsAdded cfg
+
 main :: IO ()
 main = do
   cfg <- Dhall.input Dhall.auto "./config.dhall" :: IO Settings
-  let program = do
-        react @'GuildMemberAddEvt \ctx -> void $ tell ctx $ cfg ^. #joinMsg
-        react @'MessageCreateEvt $ messageCreateAction cfg
-        addCommands ( do
-	  helpCommand
-	  command @'[] "info" \ctx -> void $ tell @Text ctx $ cfg ^. #infoMsg)
   Di.new \di -> do
     void . P.runFinal . P.embedToFinal. runCacheInMemory . runDiToIO di. runMetricsNoop. useConstantPrefix "¬" .
       -- if run without IO, the state is localised, ignore final state via fmap
-      fmap snd . P.atomicStateToIO Map.empty . runBotIO (BotToken $ cfg ^. #botToken) $ program
+      fmap snd . P.atomicStateToIO Map.empty . runBotIO (BotToken $ cfg ^. #botToken) $ program cfg

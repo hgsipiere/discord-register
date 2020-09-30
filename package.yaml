@@ -25,6 +25,8 @@ dependencies:
 - dhall
 - generic-lens
 - text-show
+- megaparsec >= 8.0.0
+- unboxing-vector >= 0.1.1.0
 executables:
   poke-exe:
     main:                Main.hs
