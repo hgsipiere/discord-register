@@ -12,6 +12,7 @@ import Control.Monad (void)
 
 import qualified Data.HashMap.Strict as Map (insert, empty, lookup, HashMap)
 import Data.Maybe (isNothing)
+import qualified Data.Text as T
 import Data.Text.Lazy as TL (Text, pack, intercalate, unpack, foldl', append, any, singleton)
 
 import qualified Dhall (input, auto, FromDhall)
@@ -71,11 +72,10 @@ instance Dhall.FromDhall (Snowflake a)
 instance Dhall.FromDhall Settings
 data Form = Empty | Named Text | NamedEmailed Text Text | Finished
 
-isAdmin :: Settings -> Member -> Bool
-isAdmin cfg member = V.elem (cfg ^. #adminRoleID) (member ^. #roles)
-
-toMention :: Snowflake User -> CreateMessageOptions
-toMention sUser = CreateMessageOptions (Just $ showt ("<@" `append`  showtl sUser `append` ">"))
+mentionUser :: Snowflake User -> Text -> Text -> CreateMessageOptions
+mentionUser sUser preMention content = CreateMessageOptions
+  (Just . T.pack . TL.unpack $
+    preMention `append` "<@" `append`  showtl sUser `append` ">" `append` content)
   Nothing Nothing Nothing Nothing -- no nonce, tts, file, embed
   (Just (AllowedMentions [AllowedMentionUsers] [] [sUser]))
 
@@ -107,9 +107,8 @@ grabScreenshot cfg name email msg =
     files@(x:_) -> do
       current <- P.atomicGet
       _ <- P.atomicPut $ Map.insert author Finished current
-      void $ tell (cfg ^. #vchannelID) (name <> " " <> email)
-      void $ tell (cfg ^. #vchannelID) (x ^. #url)
-      void $ tell (cfg ^. #vchannelID) (toMention author)
+      void . tell (cfg ^. #vchannelID) . mentionUser author "Discord ID: "$
+        "\nName: " <> name <> "\nEmail: " <> email <> "\nAttachment: " <> (x ^. #url)
       void $ tell @Text author $ cfg ^. #screenshotReciMsg
     [] -> void $ tell @Text author $ cfg ^. #noScreenshotMsg
 
@@ -129,7 +128,7 @@ messageCreateAction cfg = \msg@Message{author, M.content = response} -> do
 resetCommand cfg = command @'[Snowflake User, [Text]] "reset" \ctx sUser reason ->
   case ctx ^. #member of
     Nothing -> void $ tell @Text ctx $ cfg ^. #resetNeedsGuildMsg
-    Just mem -> if isAdmin cfg mem then
+    Just mem -> if V.elem (cfg ^. #adminRoleID) (mem ^. #roles)then
       do
         current <- P.atomicGet
         _ <- P.atomicPut $ Map.insert sUser Empty current
@@ -142,6 +141,7 @@ commandsAdded cfg = addCommands $ do
   command @'[] "info" \ctx -> void $ tell ctx $ cfg ^. #infoMsg
   command @'[] "privacy" \ctx -> void $ tell ctx $ cfg ^. #privacyMsg
   resetCommand cfg
+
 program cfg = 
   (react @'GuildMemberAddEvt \ctx -> void $ tell ctx $ cfg ^. #joinMsg) >>
   (react @'MessageCreateEvt $ messageCreateAction cfg) >>
