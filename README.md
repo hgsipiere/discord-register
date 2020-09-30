@@ -8,6 +8,7 @@ Poke is an interactive verification bot for registers with full name, email and 
 - Messages configurable with Dhall (except most admin messages in English)
 - Verification forms can be reset by those with admin role using a command giving a reason
 - Parser for full names, supporting unicode and requiring an underscore if no surname.
+- Sane defaults
 - Low memory usage (high cpu/memory usage for compile however)
 - Written in Haskell using Polysemy with Calamity effects
 - No database needed
