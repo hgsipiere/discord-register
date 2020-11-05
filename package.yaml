@@ -11,6 +11,10 @@ extra-source-files:
  - config.dhall.empty
 synopsis:            A Discord Bot for checking new users, full names and other details
 category:            Web
+description:         This bot can send new server members a message on entry,
+  ask for their full name (using a parser to check it is reasonable), email and a
+  picture from them. Reset commands for improper forms are also implemented, as well
+  as help, privacy and info commands. The default prefix is the negation symbol from mathematics.
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
