@@ -68,6 +68,8 @@ extra-deps:
   - text-show-3.8.5
   - megaparsec-8.0.0
   - unboxing-vector-0.1.1.0
+  - hspec-2.7.4
+  - hspec-megaparsec-2.1.0
 # Override default flag values for local packages and extra-deps
 # flags: {}
 
