@@ -9,9 +9,8 @@ extra-source-files:
  - LICENSE
  - README.md
  - config.dhall.empty
-# Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Web
+synopsis:            A Discord Bot for checking new users, full names and other details
+category:            Web
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
