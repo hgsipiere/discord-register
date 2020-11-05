@@ -9,8 +9,9 @@ extra-source-files:
  - LICENSE
  - README.md
  - config.dhall.empty
-synopsis:            A Discord Bot for checking new users, full names and other details
 category:            Web
+
+synopsis: Discord verification bot
 description:         This bot can send new server members a message on entry,
   ask for their full name (using a parser to check it is reasonable), email and a
   picture from them. Reset commands for improper forms are also implemented, as well
@@ -39,6 +40,7 @@ dependencies:
 - hspec-megaparsec >= 2.1.0 && < 2.1.1
 library:
   source-dirs: src
+  # O2 is reasonable when using Polysemy
   ghc-options:
       - -O2
       - -fplugin=Polysemy.Plugin
