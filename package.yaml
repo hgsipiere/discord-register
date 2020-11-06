@@ -11,6 +11,8 @@ extra-source-files:
  - config.dhall.empty
 category:            Web
 
+tested-with : GHC == 8.8.4
+
 synopsis: Discord verification bot
 description:         This bot can send new server members a message on entry,
   ask for their full name (using a parser to check it is reasonable), email and a
