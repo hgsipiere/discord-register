@@ -1,6 +1,6 @@
-name:                poke
-version: 0.0.0.1
-github: "psverify/poke"
+name:                discord-register
+version: 0.0.1
+github: "hgsipiere/discord-register"
 author: "Hugh Sipiere"
 copyright: "2020 Hugh Sipiere"
 license:             MPL-2.0
@@ -70,13 +70,13 @@ library:
       - ViewPatterns
       - NamedFieldPuns
 executables:
-  poke-exe:
+  discord-register-exe:
     main:                Main.hs
     source-dirs:         app
-    dependencies:        poke
+    dependencies:        discord-register
 
 tests:
-  poke-test:
+  discord-register-test:
     main: Spec.hs
     source-dirs: test
     ghc-options:
@@ -84,4 +84,4 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - poke
+    - discord-register

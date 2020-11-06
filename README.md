@@ -1,7 +1,7 @@
-## Poke
+## Discord-register
 ### Verification bot for registers with full name and email
 
-Poke is an interactive verification bot for registers with full name, email and photo ID requirements.
+Discord-register is an interactive verification bot for registers with full name, email and photo ID requirements.
 
 #### Features:
 - All verification forms sent to a verification channel
