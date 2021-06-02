@@ -1,0 +1,19 @@
+{
+        "joinMsg" : "welcome!",
+        "name_query" :
+                {"incorrect_response" : "thats not a name",
+                "correct_response" :
+                "thanks for the name, now send me a screenshot"},
+        "screenshot_query" :
+                {"incorrect_response" : "no attachments given",
+                 "correct_response" : "thanks that's all today"},
+        "done": "you are done with all queries",
+        "infoCommands":[
+                {"cmd_name":"command_name",
+                "info":"what you want to say"}
+
+        ],
+        "joinMsg":"hi",
+        "botID":"censored",
+        "botToken":"censored",
+        "vChannelID" : "censored"}

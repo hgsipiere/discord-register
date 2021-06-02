@@ -1,0 +1,85 @@
+name:                discord-register
+version: 0.0.2
+github: "hgsipiere/discord-register"
+author: "Hugh Sipiere"
+copyright: "2020 Hugh Sipiere"
+license:             MPL-2.0
+
+extra-source-files:
+ - LICENSE
+ - README.md
+category:            Web
+
+tested-with: GHC == 8.10.4
+synopsis: Discord verification bot
+description:         This bot can send new server members a message on entry,
+  ask for their full name (using a parser to check it is reasonable), email and a
+  picture from them. Reset commands for improper forms are also implemented, as well
+  as help, privacy and info commands. The default prefix is the negation symbol from mathematics.
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+
+dependencies:
+- base
+- calamity
+- polysemy
+- polysemy-plugin
+- generic-lens
+- lens
+- megaparsec # want to get rid of this
+- di
+- di-polysemy
+- text
+- data-flags
+- unordered-containers
+- unboxing-vector
+- text-show
+- aeson
+- bytestring
+- binary
+- hashable
+- calamity-commands
+- lens
+- hedis # not part of calamity i think
+- regex-tdfa
+
+default-extensions:
+  - DataKinds
+  - FlexibleContexts
+  - GADTs
+  - LambdaCase
+  - PolyKinds #?
+  - ScopedTypeVariables
+    # - TypeApplications ormolu is weird
+  - TypeOperators
+  - TypeFamilies
+  - DeriveGeneric # learn what this actually does
+  - BlockArguments
+  - OverloadedLabels
+  - OverloadedStrings
+  - TemplateHaskell
+  - ConstraintKinds
+  - DefaultSignatures # learn this
+  - FlexibleInstances # learn this
+  - MultiParamTypeClasses
+  - MultiWayIf
+  - UndecidableInstances # wish was unnecessary
+  - ViewPatterns
+  - NamedFieldPuns
+  - TemplateHaskell
+  - PartialTypeSignatures
+  - ConstraintKinds
+  - LambdaCase
+
+library:
+  source-dirs: src
+  # O2 is reasonable when using Polysemy
+  ghc-options:
+      - -fplugin=Polysemy.Plugin
+executables:
+  discord-register-exe:
+    main:                Main.hs
+    source-dirs:         app
+    dependencies:        discord-register
