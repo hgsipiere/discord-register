@@ -13,9 +13,7 @@ category:            Web
 tested-with: GHC == 8.10.4
 synopsis: Discord verification bot
 description:         This bot can send new server members a message on entry,
-  ask for their full name (using a parser to check it is reasonable), email and a
-  picture from them. Reset commands for improper forms are also implemented, as well
-  as help, privacy and info commands. The default prefix is the negation symbol from mathematics.
+  ask for their name and an attachment.
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
