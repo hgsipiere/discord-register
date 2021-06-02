@@ -8,6 +8,7 @@ license:             MPL-2.0
 extra-source-files:
  - LICENSE
  - README.md
+ - ChangeLog.md
 category:            Web
 
 tested-with: GHC == 8.10.4
@@ -20,7 +21,7 @@ description:         This bot can send new server members a message on entry,
 # common to point users to the README.md file.
 
 dependencies:
-- base
+- base >= 4.14 && < 4.15
 - calamity
 - polysemy
 - polysemy-plugin
